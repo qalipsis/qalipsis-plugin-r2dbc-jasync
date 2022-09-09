@@ -1,7 +1,6 @@
 package io.qalipsis.plugins.r2dbc.jasync.poll
 
 import com.github.jasync.sql.db.ConnectionPoolConfiguration
-import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.SuspendingConnection
 import com.github.jasync.sql.db.asSuspending
 import io.aerisconsulting.catadioptre.KTestable
@@ -12,7 +11,6 @@ import io.qalipsis.api.events.EventsLogger
 import io.qalipsis.api.steps.StepCreationContext
 import io.qalipsis.api.steps.StepSpecification
 import io.qalipsis.api.steps.StepSpecificationConverter
-import io.qalipsis.api.steps.datasource.DatasourceObjectConverter
 import io.qalipsis.api.steps.datasource.IterativeDatasourceStep
 import io.qalipsis.api.steps.datasource.processors.NoopDatasourceObjectProcessor
 import io.qalipsis.plugins.r2dbc.jasync.converters.ParametersConverter
@@ -59,13 +57,15 @@ internal class JasyncPollStepSpecificationConverter(
             { Channel(Channel.UNLIMITED) }
         )
 
-        val converter = buildConverter(spec)
-
         val step = IterativeDatasourceStep(
             stepId,
             reader,
             NoopDatasourceObjectProcessor(),
-            converter
+            ResultSetBatchConverter(
+                resultValuesConverter,
+                eventsLogger = eventsLogger.takeIf { spec.monitoringConfig.events },
+                meterRegistry = meterRegistry.takeIf { spec.monitoringConfig.meters }
+            )
         )
         creationContext.createdStep(step)
     }
@@ -80,21 +80,6 @@ internal class JasyncPollStepSpecificationConverter(
             sql = spec.query!!,
             initialParameters = spec.parameters.map(parametersConverter::process)
         )
-    }
-
-    private fun buildConverter(spec: JasyncPollStepSpecificationImpl): DatasourceObjectConverter<ResultSet, out Any> {
-        return if (spec.flattenOutput) {
-            ResultSetSingleConverter(
-                resultValuesConverter,
-                eventsLogger = eventsLogger.takeIf { spec.monitoringConfig.events },
-                meterRegistry = meterRegistry.takeIf { spec.monitoringConfig.meters }
-            )
-        } else {
-            ResultSetBatchConverter(
-                resultValuesConverter,
-                eventsLogger = eventsLogger.takeIf { spec.monitoringConfig.events },
-                meterRegistry = meterRegistry.takeIf { spec.monitoringConfig.meters })
-        }
     }
 
     private fun buildConnectionConfiguration(spec: JasyncPollStepSpecificationImpl): ConnectionPoolConfiguration {

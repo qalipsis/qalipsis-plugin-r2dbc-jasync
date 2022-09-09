@@ -1,10 +1,11 @@
 package io.qalipsis.plugins.r2dbc.jasync.poll
 
 import io.qalipsis.api.annotations.Scenario
-import io.qalipsis.api.lang.concurrentList
+import io.qalipsis.api.lang.concurrentSet
 import io.qalipsis.api.rampup.regular
 import io.qalipsis.api.scenario.scenario
 import io.qalipsis.api.steps.filterNotNull
+import io.qalipsis.api.steps.flatten
 import io.qalipsis.api.steps.innerJoin
 import io.qalipsis.api.steps.logErrors
 import io.qalipsis.api.steps.map
@@ -27,7 +28,7 @@ object PollScenario {
 
     const val minions = 5
 
-    val receivedMessages = concurrentList<String>()
+    val receivedMessages = concurrentSet<String>()
 
     lateinit var protocol: Protocol
 

@@ -12,14 +12,12 @@ import assertk.assertions.isSameAs
 import assertk.assertions.isTrue
 import com.github.jasync.sql.db.ResultSet
 import io.aerisconsulting.catadioptre.getProperty
-import io.aerisconsulting.catadioptre.invokeInvisible
 import io.mockk.every
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.spyk
 import io.qalipsis.api.steps.StepCreationContext
 import io.qalipsis.api.steps.StepCreationContextImpl
-import io.qalipsis.api.steps.datasource.DatasourceObjectConverter
 import io.qalipsis.api.steps.datasource.IterativeDatasourceStep
 import io.qalipsis.api.steps.datasource.processors.NoopDatasourceObjectProcessor
 import io.qalipsis.plugins.r2dbc.jasync.converters.ParametersConverter
@@ -31,7 +29,6 @@ import io.qalipsis.test.assertk.prop
 import io.qalipsis.test.coroutines.TestDispatcherProvider
 import io.qalipsis.test.mockk.WithMockk
 import io.qalipsis.test.mockk.relaxedMockk
-import io.qalipsis.test.mockk.verifyOnce
 import io.qalipsis.test.steps.AbstractStepSpecificationConverterTest
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +39,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import java.time.Duration
 import java.time.LocalDate
-import assertk.assertions.isNull as isNull1
 
 /**
  *
@@ -100,9 +96,6 @@ internal class JasyncPollStepSpecificationConverterTest :
         val creationContext = StepCreationContextImpl(scenarioSpecification, directedAcyclicGraph, spec)
         val spiedConverter = spyk(converter, recordPrivateCalls = true)
 
-        val recordsConverter: DatasourceObjectConverter<ResultSet, out Any> = relaxedMockk()
-        every { spiedConverter["buildConverter"](refEq(spec)) } returns recordsConverter
-
         val sqlPollStatement: SqlPollStatement = relaxedMockk()
         every {
             spiedConverter.buildSqlStatement(
@@ -128,10 +121,9 @@ internal class JasyncPollStepSpecificationConverterTest :
                     prop("resultsChannelFactory").isNotNull()
                 }
                 prop("processor").isNotNull().isInstanceOf(NoopDatasourceObjectProcessor::class)
-                prop("converter").isNotNull().isSameAs(recordsConverter)
+                prop("converter").isNotNull().isInstanceOf(ResultSetBatchConverter::class)
             }
         }
-        verifyOnce { spiedConverter["buildConverter"](refEq(spec)) }
 
         val channelFactory = creationContext.createdStep!!
             .getProperty<JasyncIterativeReader>("reader")
@@ -205,75 +197,4 @@ internal class JasyncPollStepSpecificationConverterTest :
         }
     }
 
-    @Test
-    internal fun `should build batch converter with eventsLogger`() {
-        // given
-        val spec = JasyncPollStepSpecificationImpl()
-        spec.monitoring { events = true }
-
-        // when
-        val converter =
-            converter.invokeInvisible<DatasourceObjectConverter<ResultSet, out Any>>("buildConverter", spec)
-
-        // then
-        assertThat(converter).isInstanceOf(ResultSetBatchConverter::class).all {
-            prop("resultValuesConverter").isSameAs(resultValuesConverter)
-            prop("meterRegistry").isNull1()
-            prop("eventsLogger").isNotNull().isEqualTo(eventsLogger)
-        }
-    }
-
-    @Test
-    internal fun `should build batch converter with monitoring`() {
-        // given
-        val spec = JasyncPollStepSpecificationImpl()
-        spec.monitoring { meters = true }
-        // when
-        val converter =
-            converter.invokeInvisible<DatasourceObjectConverter<ResultSet, out Any>>("buildConverter", spec)
-
-        // then
-        assertThat(converter).isInstanceOf(ResultSetBatchConverter::class).all {
-            prop("resultValuesConverter").isSameAs(resultValuesConverter)
-            prop("meterRegistry").isNotNull().isEqualTo(meterRegistry)
-            prop("eventsLogger").isNull1()
-        }
-    }
-
-
-    @Test
-    internal fun `should build single converter with eventsLogger`() {
-        // given
-        val spec = JasyncPollStepSpecificationImpl()
-        spec.flattenOutput = true
-        spec.monitoring { events = true }
-        // when
-        val converter =
-            converter.invokeInvisible<DatasourceObjectConverter<ResultSet, out Any>>("buildConverter", spec)
-
-        // then
-        assertThat(converter).isInstanceOf(ResultSetSingleConverter::class).all {
-            prop("resultValuesConverter").isSameAs(resultValuesConverter)
-            prop("eventsLogger").isNotNull().isEqualTo(eventsLogger)
-            prop("meterRegistry").isNull1()
-        }
-    }
-
-    @Test
-    internal fun `should build single converter with monitoring`() {
-        // given
-        val spec = JasyncPollStepSpecificationImpl()
-        spec.flattenOutput = true
-        spec.monitoring { meters = true }
-        // when
-        val converter =
-            converter.invokeInvisible<DatasourceObjectConverter<ResultSet, out Any>>("buildConverter", spec)
-
-        // then
-        assertThat(converter).isInstanceOf(ResultSetSingleConverter::class).all {
-            prop("resultValuesConverter").isSameAs(resultValuesConverter)
-            prop("eventsLogger").isNull1()
-            prop("meterRegistry").isNotNull().isEqualTo(meterRegistry)
-        }
-    }
 }

@@ -4,6 +4,7 @@ import io.qalipsis.api.annotations.Spec
 import io.qalipsis.api.scenario.StepSpecificationRegistry
 import io.qalipsis.api.steps.AbstractStepSpecification
 import io.qalipsis.api.steps.BroadcastSpecification
+import io.qalipsis.api.steps.ConfigurableStepSpecification
 import io.qalipsis.api.steps.LoopableSpecification
 import io.qalipsis.api.steps.SingletonConfiguration
 import io.qalipsis.api.steps.SingletonType
@@ -11,7 +12,6 @@ import io.qalipsis.api.steps.StepMonitoringConfiguration
 import io.qalipsis.api.steps.StepSpecification
 import io.qalipsis.api.steps.UnicastSpecification
 import io.qalipsis.api.steps.datasource.DatasourceRecord
-import io.qalipsis.plugins.r2dbc.jasync.Flattenable
 import io.qalipsis.plugins.r2dbc.jasync.JasyncConnection
 import io.qalipsis.plugins.r2dbc.jasync.R2dbcJasyncScenarioSpecification
 import io.qalipsis.plugins.r2dbc.jasync.R2dbcJasyncStepSpecification
@@ -32,8 +32,9 @@ import javax.validation.constraints.NotBlank
  */
 @Spec
 interface JasyncPollStepSpecification :
-    StepSpecification<Unit, List<DatasourceRecord<Map<String, Any?>>>, Flattenable<DatasourceRecord<Map<String, Any?>>>>,
-    R2dbcJasyncStepSpecification<Unit, List<DatasourceRecord<Map<String, Any?>>>, Flattenable<DatasourceRecord<Map<String, Any?>>>>,
+    StepSpecification<Unit, List<DatasourceRecord<Map<String, Any?>>>, JasyncPollStepSpecification>,
+    ConfigurableStepSpecification<Unit, List<DatasourceRecord<Map<String, Any?>>>, JasyncPollStepSpecification>,
+    R2dbcJasyncStepSpecification<Unit, List<DatasourceRecord<Map<String, Any?>>>, JasyncPollStepSpecification>,
     LoopableSpecification, UnicastSpecification, BroadcastSpecification {
 
     /**
@@ -79,8 +80,8 @@ interface JasyncPollStepSpecification :
     fun pollDelay(delay: Duration)
 
     /**
-    * Configures the monitoring of the poll step.
-    */
+     * Configures the monitoring of the poll step.
+     */
     fun monitoring(monitoringConfig: StepMonitoringConfiguration.() -> Unit)
 }
 
@@ -91,8 +92,8 @@ interface JasyncPollStepSpecification :
  */
 @Spec
 internal class JasyncPollStepSpecificationImpl :
-    AbstractStepSpecification<Unit, List<DatasourceRecord<Map<String, Any?>>>, Flattenable<DatasourceRecord<Map<String, Any?>>>>(),
-    Flattenable<DatasourceRecord<Map<String, Any?>>>, JasyncPollStepSpecification {
+    AbstractStepSpecification<Unit, List<DatasourceRecord<Map<String, Any?>>>, JasyncPollStepSpecification>(),
+    JasyncPollStepSpecification {
 
     override val singletonConfiguration: SingletonConfiguration = SingletonConfiguration(SingletonType.UNICAST)
 
@@ -110,8 +111,6 @@ internal class JasyncPollStepSpecificationImpl :
     internal var pollDelay: Duration? = null
 
     internal val monitoringConfig = StepMonitoringConfiguration()
-
-    internal var flattenOutput = false
 
     override fun connection(configBlock: JasyncConnection.() -> Unit) {
         connection.configBlock()
@@ -137,15 +136,7 @@ internal class JasyncPollStepSpecificationImpl :
     override fun monitoring(monitoringConfig: StepMonitoringConfiguration.() -> Unit) {
         this.monitoringConfig.monitoringConfig()
     }
-
-    override fun flatten(): StepSpecification<Unit, DatasourceRecord<Map<String, Any?>>, *> {
-        flattenOutput = true
-
-        @Suppress("UNCHECKED_CAST")
-        return this as StepSpecification<Unit, DatasourceRecord<Map<String, Any?>>, *>
-    }
 }
-
 
 
 /**
@@ -158,8 +149,8 @@ internal class JasyncPollStepSpecificationImpl :
  * @author Eric Jessé
  */
 fun R2dbcJasyncScenarioSpecification.poll(
-        configurationBlock: JasyncPollStepSpecification.() -> Unit
-): Flattenable<DatasourceRecord<Map<String, Any?>>> {
+    configurationBlock: JasyncPollStepSpecification.() -> Unit
+): JasyncPollStepSpecification {
     val step = JasyncPollStepSpecificationImpl()
     step.configurationBlock()
 
