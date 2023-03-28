@@ -1,6 +1,6 @@
-jasync.save.records;Int
-jasync.save.records.failure;Int
-jasync.save.records.success;Int
-jasync.save.records.time-to-response;Duration
+r2dbc-jasync.save.records;Int
+r2dbc-jasync.save.records.failure;Int
+r2dbc-jasync.save.records.success;Int
+r2dbc-jasync.save.records.time-to-response;Duration
 r2dbc.jasync.poll.records;Int
 r2dbc.jasync.search.records;Int
