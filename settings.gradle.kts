@@ -17,6 +17,8 @@
 rootProject.name = "qalipsis-plugins-r2dbc-jasync"
 
 include(
-    "r2dbc-jasync"
+    "qalipsis-plugin-r2dbc-jasync"
 )
+
+project(":qalipsis-plugin-r2dbc-jasync").projectDir = File(rootDir, "r2dbc-jasync")
 
