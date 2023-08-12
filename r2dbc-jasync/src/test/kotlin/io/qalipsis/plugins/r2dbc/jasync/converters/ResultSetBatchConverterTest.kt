@@ -18,11 +18,15 @@ package io.qalipsis.plugins.r2dbc.jasync.converters
 
 import assertk.all
 import assertk.assertThat
-import assertk.assertions.*
+import assertk.assertions.hasSize
+import assertk.assertions.index
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
+import assertk.assertions.key
+import assertk.assertions.prop
 import com.github.jasync.sql.db.general.ArrayRowData
 import com.github.jasync.sql.db.general.MutableResultSet
-import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.Tags
 import io.mockk.coEvery
 import io.mockk.confirmVerified
 import io.mockk.every
@@ -30,6 +34,8 @@ import io.mockk.impl.annotations.RelaxedMockK
 import io.qalipsis.api.context.StepStartStopContext
 import io.qalipsis.api.events.EventsLogger
 import io.qalipsis.api.meters.CampaignMeterRegistry
+import io.qalipsis.api.meters.Counter
+import io.qalipsis.api.meters.Meter
 import io.qalipsis.api.steps.datasource.DatasourceRecord
 import io.qalipsis.plugins.r2dbc.jasync.poll.JasyncPollMeters
 import io.qalipsis.plugins.r2dbc.jasync.poll.JasyncPollResults
@@ -57,6 +63,8 @@ internal class ResultSetBatchConverterTest {
 
     private val counter = relaxedMockk<Counter>()
 
+    private val successCounter = relaxedMockk<Counter>()
+
     private val eventsLogger = relaxedMockk<EventsLogger>()
 
     @Test
@@ -82,9 +90,9 @@ internal class ResultSetBatchConverterTest {
             )
         )
         val channel = Channel<JasyncPollResults<*>>(1)
-        val metersTags = relaxedMockk<Tags>()
+        val tags: Map<String, String> = emptyMap()
         val startStopContext = relaxedMockk<StepStartStopContext> {
-            every { toMetersTags() } returns metersTags
+            every { toEventTags() } returns tags
         }
         val converter = ResultSetBatchConverter(
             resultValuesConverter, null, null
@@ -148,13 +156,17 @@ internal class ResultSetBatchConverterTest {
         val channel = Channel<JasyncPollResults<*>>(1)
         val tags: Map<String, String> = emptyMap()
 
-        val metersTags = relaxedMockk<Tags>()
         val meterRegistry = relaxedMockk<CampaignMeterRegistry> {
-            every { counter("r2dbc-jasync-poll-records", refEq(metersTags)) } returns counter
+            every { counter("scenario-test", "step-test", "r2dbc-jasync-poll-records", refEq(tags)) } returns counter
+            every { counter.report(any()) } returns counter
+            every { counter("scenario-test", "step-test", "r2dbc-jasync-poll-successes", refEq(tags)) } returns successCounter
+            every { successCounter.report(any()) } returns successCounter
         }
 
         val startStopContext = relaxedMockk<StepStartStopContext> {
-            every { toMetersTags() } returns metersTags
+            every { toEventTags() } returns tags
+            every { scenarioName } returns "scenario-test"
+            every { stepName } returns "step-test"
         }
         val converter = ResultSetBatchConverter(
             resultValuesConverter, meterRegistry, eventsLogger
@@ -193,7 +205,9 @@ internal class ResultSetBatchConverterTest {
         }
         verifyOnce {
             counter.increment(2.0)
-            eventsLogger.info("r2dbc.jasync.poll.records", 2, any(), tags = tags)}
+            counter.report(any<Meter.ReportingConfiguration<Counter>.() -> Unit>())
+            eventsLogger.info("r2dbc.jasync.poll.records", 2, any(), tags = tags)
+        }
         confirmVerified(counter, eventsLogger)
     }
 
