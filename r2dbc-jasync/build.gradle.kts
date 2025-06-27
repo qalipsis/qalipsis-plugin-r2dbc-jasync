@@ -39,10 +39,6 @@ allOpen {
     )
 }
 
-val micronautVersion: String by project
-val kotlinCoroutinesVersion: String by project
-val testContainersVersion: String by project
-
 kotlin.sourceSets["test"].kotlin.srcDir("build/generated/source/kaptKotlin/catadioptre")
 kapt.useBuildCache = false
 
