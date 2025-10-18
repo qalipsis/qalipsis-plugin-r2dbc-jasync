@@ -1,15 +1,16 @@
-name: Java CI - Work in progress
+name: Build the develop branch and publish artifacts
 
 on:
-  pull_request:
+  push:
     branches:
-      - 'main'
+      - 'develop/*'
+  workflow_dispatch:
 
 env:
   GITHUB_ACTIONS: true
 
 jobs:
-  pull-request-check:
+  build:
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -19,16 +20,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ matrix.java }}
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Check licenses
         run: ./gradlew checkLicense
@@ -41,6 +42,9 @@ jobs:
         if: always()
         run: ./gradlew aggregatedTestReport -x test -x integrationTest
 
+      - name: Build
+        run: ./gradlew assemble
+
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v5
         if: always()
@@ -49,20 +53,27 @@ jobs:
           fail_on_failure: true
           summary: true
 
-      - name: Upload tests and coverage reports
+      - name: Upload reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Test and coverage Reports
           path: '**/build/reports/'
 
-  dependency-review:
-    needs: pull-request-check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Perform dependency review
-        uses: actions/dependency-review-action@v4
+      - name: Upload JARs
+        uses: actions/upload-artifact@v4
         with:
-          vulnerability-check: false
-          deny-licenses: 'GPL-3.0'
+          name: Jars
+          path: |
+            ./**/build/libs/*.jar
+            !./**/build/libs/*-javadoc.jar
+
+      - name: Prepare publishing configuration
+        env:
+          JRELEASER_CONFIGURATION: ${{secrets.JRELEASER_CONFIGURATION}}
+        run: |
+          mkdir -p $HOME/.jreleaser
+          echo "$JRELEASER_CONFIGURATION" > $HOME/.jreleaser/config.yml ;
+
+      - name: Publish artifacts
+        run: ./gradlew publish jreleaserFullRelease
