@@ -34,6 +34,13 @@ plugins {
     id("org.jreleaser") version "1.18.0"
     id("com.github.jk1.dependency-license-report") version "2.9"
     id("com.palantir.git-version") version "3.0.0"
+    id("io.qalipsis.build") version "0.1.1"
+}
+
+qalipsisBuild {
+    metricsReport {
+        enabled.set(true)
+    }
 }
 
 licenseReport {

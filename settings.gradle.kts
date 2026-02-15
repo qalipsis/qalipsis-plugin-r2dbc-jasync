@@ -17,6 +17,14 @@
  *
  */
 
+pluginManagement {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 rootProject.name = "qalipsis-plugins-r2dbc-jasync"
 
 include(
